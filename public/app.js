@@ -902,7 +902,9 @@ document.addEventListener("keydown", (e) => {
   const watching = location.pathname.startsWith("/watch/") ? location.pathname.split("/")[2] : null;
   const target = vidOf(sel) || watching;
   const key = e.code === "Slash" && e.shiftKey ? "?" : e.key;
-  if (watching && watchKey(key)) { e.preventDefault(); return; }
+  // like YouTube, Space on a focused button or link activates it instead of play/pause
+  const spaceOnControl = key === " " && el?.closest?.("button, a, summary, [role=button]");
+  if (watching && !spaceOnControl && watchKey(key)) { e.preventDefault(); return; }
   switch (key) {
     case "t": case "T": e.preventDefault(); tvOpen(); break;
     case "/": e.preventDefault(); $("#q").focus(); $("#q").select(); break;
