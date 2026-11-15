@@ -861,7 +861,7 @@ document.addEventListener("keydown", (e) => {
     case "w": if (target) { const on = toggleLater(target); toast(on ? "Saved to Watch later" : "Removed from Watch later");
       document.querySelectorAll(`[data-later="${target}"]`).forEach((b) => { b.outerHTML = laterBtn(target); }); } break;
     case "p": $("#poster")?.click(); break;
-    case "c": if (watching) toast(toggleCC(watchPlayer?.loadModule ? watchPlayer : null) ? "Captions on" : "Captions off"); break;
+    case "c": case "C": if (watching) toast(toggleCC(watchPlayer?.loadModule ? watchPlayer : null) ? "Captions on" : "Captions off"); break;
     case "h": navigate("/"); break;
     case "?": toggleHelp(); break;
     default: return;
