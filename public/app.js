@@ -68,6 +68,10 @@ function mulberry32(a) {
     t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 }
 let toastTimer;
+function copyLink(vid, done) {
+  const url = `https://www.youtube.com/watch?v=${vid}`;
+  navigator.clipboard?.writeText(url).then(() => done("YouTube link copied"), () => done("Couldn't copy the link")) ?? done("Couldn't copy the link");
+}
 function toast(msg) {
   const t = $("#toast"); t.textContent = msg; t.classList.add("on");
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 1800);
@@ -539,7 +543,7 @@ function about() {
       (type, evergreen…) are respected. On a video page it continues that video, then keeps going in its category. On Home it
       picks from everything, better-recommended videos more often. Add <code>?tv=1</code> to any URL to start TV mode on load.</p>
     <p><kbd>N</kbd> next · <kbd>P</kbd> previous · <kbd>Space</kbd> pause · <kbd>←</kbd>/<kbd>→</kbd> ±10s ·
-      <kbd>1</kbd>–<kbd>9</kbd> jump to 10–90% · <kbd>M</kbd> mute · <kbd>C</kbd> captions · <kbd>L</kbd> like · <kbd>F</kbd> fullscreen · <kbd>Esc</kbd> exit</p>
+      <kbd>1</kbd>–<kbd>9</kbd> jump to 10–90% · <kbd>M</kbd> mute · <kbd>C</kbd> captions · <kbd>Y</kbd> copy link · <kbd>L</kbd> like · <kbd>F</kbd> fullscreen · <kbd>Esc</kbd> exit</p>
     <h2>Everything else</h2>
     <ul>
       <li><b>Home</b> is a fresh random mix on every visit, weighted toward the videos HN recommended most, with recent favorites,
@@ -730,6 +734,7 @@ function tvKey(e) {
   else if (k === "ArrowLeft") tv.ready && tvSeek(tv.player.getCurrentTime() - 10, "−10s");
   else if (k === "m" || k === "M") { if (tv.ready) { tv.player.isMuted() ? tv.player.unMute() : tv.player.mute(); tvToast(tv.player.isMuted() ? "Muted" : "Sound on"); } }
   else if (k === "c" || k === "C") { if (tv.ready) tvToast(toggleCC(tv.player) ? "CC on" : "CC off"); }
+  else if (k === "y" || k === "Y") copyLink(tvCurrent().vid, (m) => tvToast(m, 1400));
   else if (k === "l" || k === "L") { tvToast(toggleLike(tvCurrent().vid) ? "♥ Liked" : "Removed from Liked"); tvRenderInfo(); }
   else if (k === "f" || k === "F") tvFullscreen();
   else if (k === "Escape" || k === "t" || k === "T") tvClose();
@@ -833,7 +838,7 @@ function select(i) {
 }
 const SHORTCUTS = [["T", "TV mode: random videos from this page"], ["/", "Search"], ["j / k", "Next / previous video"],
   ["Enter", "Open the selected video"], ["l", "Like the selected or current video"], ["w", "Watch later"],
-  ["p", "Play (on a video page)"], ["c", "Captions on / off (video page and TV mode)"], ["h", "Home"], ["?", "Show these shortcuts"], ["Esc", "Close"]];
+  ["p", "Play (on a video page)"], ["c", "Captions on / off (video page and TV mode)"], ["y", "Copy the YouTube link of the selected or current video"], ["h", "Home"], ["?", "Show these shortcuts"], ["Esc", "Close"]];
 function toggleHelp(force) {
   const h = $("#help"), show = force ?? !h.classList.contains("on");
   h.innerHTML = `<div class="help-card" role="dialog" aria-label="Keyboard shortcuts"><h3>Keyboard shortcuts</h3>
@@ -864,6 +869,7 @@ document.addEventListener("keydown", (e) => {
       document.querySelectorAll(`[data-later="${target}"]`).forEach((b) => { b.outerHTML = laterBtn(target); }); } break;
     case "p": $("#poster")?.click(); break;
     case "c": case "C": if (watching) toast(toggleCC(watchPlayer?.loadModule ? watchPlayer : null) ? "Captions on" : "Captions off"); break;
+    case "y": case "Y": if (target) copyLink(target, toast); break;
     case "h": navigate("/"); break;
     case "?": toggleHelp(); break;
     default: return;
