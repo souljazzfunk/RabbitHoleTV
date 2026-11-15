@@ -5,10 +5,12 @@ const store = {
   get(k, d) { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
-let likes = store.get("likes", []), dislikes = store.get("dislikes", []);
-let seen = store.get("seen", []);           // opened videos, newest last
-let watchLater = store.get("later", []);
-let useFrames = store.get("frames", true);
+const VID_RE = /^[A-Za-z0-9_-]{11}$/;
+const vidList = (k) => { const v = store.get(k, []); return Array.isArray(v) ? v.filter((x) => typeof x === "string" && VID_RE.test(x)) : []; };
+let likes = vidList("likes"), dislikes = vidList("dislikes");
+let seen = vidList("seen");                 // opened videos, newest last
+let watchLater = vidList("later");
+let useFrames = store.get("frames", true) !== false;
 const seed = Math.floor(Math.random() * 2 ** 31);   // rerolled on every page load
 
 // ---------- data ----------
@@ -98,15 +100,20 @@ const TVICON = '<svg viewBox="0 0 24 24"><path d="M21 4H3a1 1 0 0 0-1 1v12a1 1 0
 const frameSrc = (vid) => `https://i.ytimg.com/vi/${vid}/hq2.jpg`;
 const thumbSrc = (vid) => useFrames ? frameSrc(vid) : `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
 // hq2 (a frame from the middle) is missing for some videos: fall back to the uploader's thumbnail
-window.thumbFallback = (img) => { if (!img.dataset.fb) { img.dataset.fb = 1; img.src = `https://i.ytimg.com/vi/${img.dataset.vid}/hqdefault.jpg`; } };
+document.addEventListener("error", (e) => {
+  const img = e.target;
+  if (img instanceof HTMLImageElement && VID_RE.test(img.dataset.vid || "") && !img.dataset.fb) {
+    img.dataset.fb = 1; img.src = `https://i.ytimg.com/vi/${img.dataset.vid}/hqdefault.jpg`;
+  }
+}, true);
 const laterBtn = (vid) => { const on = watchLater.includes(vid);
   return `<span class="later-btn${on ? " on" : ""}" role="button" tabindex="0" data-later="${vid}" title="${on ? "Saved to Watch later" : "Watch later"}">${on ? CHECK : CLOCK}</span>`; };
-const thumb = (v) => `<div class="thumb"><img loading="lazy" src="${thumbSrc(v.vid)}" data-vid="${v.vid}" onerror="thumbFallback(this)" alt="">${laterBtn(v.vid)}${v.dur ? `<span class="dur">${fmtDur(v.dur)}</span>` : ""}</div>`;
+const thumb = (v) => `<div class="thumb"><img loading="lazy" src="${thumbSrc(v.vid)}" data-vid="${v.vid}" alt="">${laterBtn(v.vid)}${v.dur ? `<span class="dur">${fmtDur(v.dur)}</span>` : ""}</div>`;
 const card = (v) => `<a class="vcard" href="/watch/${v.vid}"${v.reason ? ` title="${esc(v.reason)}"` : ""}>${thumb(v)}
   <h3 class="vt">${esc(v.title)}</h3><div class="sub">${esc(v.channel)}</div><div class="sub">${esc(subLine(v))}</div></a>`;
-const row = (v, snip = "") => `<a class="srow" href="/watch/${v.vid}">${thumb(v)}<div style="min-width:0">
+const row = (v, snip = "") => `<a class="srow" href="/watch/${v.vid}">${thumb(v)}<div class="mw0">
   <h3 class="vt">${esc(v.title)}</h3><div class="sub">${esc(v.channel)} · ${esc(subLine(v))}</div>${snip ? `<div class="snip">${esc(snip)}</div>` : ""}</div></a>`;
-const nextRow = (v) => `<a class="next" href="/watch/${v.vid}">${thumb(v)}<div style="min-width:0">
+const nextRow = (v) => `<a class="next" href="/watch/${v.vid}">${thumb(v)}<div class="mw0">
   <h3 class="vt">${esc(v.title)}</h3><div class="sub">${esc(v.channel)}</div><div class="sub">${esc(subLine(v))}</div></div></a>`;
 const tvPill = (label = "TV mode") => `<button class="pill tvpill" data-tv title="Fullscreen, random videos from this page (T)">${TVICON}${label}</button>`;
 
@@ -184,12 +191,12 @@ function filterBar(path, p, { listing = true, playable = true, tv = true } = {})
   const groups = FILTERS().map(([title, opts]) => [title, !listing || title !== "Sort by" ? opts
     : opts.filter(([, v]) => v !== "hn").map(([k, v, l]) => [k, v, v ? l : "Best first"])]);
   const active = groups.flatMap(([, opts]) => opts.filter(([k, v]) => v && p[k] === v)
-    .map(([k, v, l]) => `<a class="chip on" href="${link(k, v)}" title="Remove filter">${l}<span>×</span></a>`));
+    .map(([k, v, l]) => `<a class="chip on" href="${esc(link(k, v))}" title="Remove filter">${l}<span>×</span></a>`));
   return `<div class="filterbar">
       <button class="pill${filtersOpen ? " on" : ""}" id="filters-btn"><svg viewBox="0 0 24 24"><path d="M15 17h6v1h-6v-1zm-4 0H3v1h8v2h1v-5h-1v2zm3-9h1V3h-1v2H3v1h11v2zm4-3v1h3V5h-3zM6 14h1V9H6v2H3v1h3v2zm4-2h11v-1H10v1z"/></svg>Filters</button>
       ${active.join("")}<span class="grow"></span>${tv ? tvPill() : ""}${playable ? playAll() : ""}</div>
     <div class="filters"${filtersOpen ? "" : " hidden"}>${groups.map(([title, opts]) => `<div><h4>${title}</h4>
-      ${opts.map(([k, v, l]) => `<a href="${link(k, v)}" class="${(p[k] || "") === v ? "on" : ""}">${l}</a>`).join("")}</div>`).join("")}</div>`;
+      ${opts.map(([k, v, l]) => `<a href="${esc(link(k, v))}" class="${(p[k] || "") === v ? "on" : ""}">${l}</a>`).join("")}</div>`).join("")}</div>`;
 }
 const playAll = () => `<a class="pill playall" href="https://www.youtube.com/" target="_blank" rel="noopener" title="Open the videos on this page as a playlist on YouTube"><svg viewBox="0 0 24 24"><path d="M3 5h12v2H3zm0 4h12v2H3zm0 4h8v2H3zm12 0v8l6-4z"/></svg>Play all on YouTube</a>`;
 function wireFilterBar() {
@@ -265,7 +272,7 @@ async function category(id) {
   const p = filterParams();
   const list = applyFilters(V.filter((v) => v.cats.includes(id)), p);
   setContext(c.name, list);
-  view.innerHTML = `<div class="pagehead"><a class="crumb" href="/a/${c.area}">${esc(c.areaName)}</a><h2>${esc(c.name)}</h2>
+  view.innerHTML = `<div class="pagehead"><a class="crumb" href="/a/${esc(c.area)}">${esc(c.areaName)}</a><h2>${esc(c.name)}</h2>
     <p class="sub">${esc(c.description)}</p></div>${filterBar(`/c/${id}`, p)}<div class="grid" id="grid"></div>`;
   wireFilterBar();
   infinite($("#grid"), list);
@@ -279,7 +286,7 @@ async function area(id) {
   const list = applyFilters(V.filter((v) => v.cats.some((c) => CAT.get(c)?.area === id)), p);
   setContext(a.name, list);
   view.innerHTML = `<div class="pagehead"><a class="crumb" href="/categories">Categories</a><h2>${esc(a.name)}</h2></div>
-    <div class="catwrap">${a.categories.map((c) => `<a class="chip" href="/c/${c.id}">${esc(c.name)}</a>`).join("")}</div>
+    <div class="catwrap">${a.categories.map((c) => `<a class="chip" href="/c/${esc(c.id)}">${esc(c.name)}</a>`).join("")}</div>
     ${filterBar(`/a/${id}`, p)}<div class="grid" id="grid"></div>`;
   wireFilterBar();
   infinite($("#grid"), list);
@@ -304,8 +311,8 @@ async function categoriesPage() {
       ${HAS_META ? `<a class="pill" href="/browse?dur=xlong">Longs</a><a class="pill" href="/browse?gems=1">Hidden gems</a>` : ""}
       <a class="pill" href="/browse">All videos</a></div>
     <div class="areas">${AREAS.map((a) => `<section class="areacard">
-      <a class="areaname" href="/a/${a.id}">${esc(a.name)}<span class="count">${a.count}</span></a>
-      <div class="cats">${a.categories.map((c) => `<a href="/c/${c.id}">${esc(c.name)}<span class="count">${c.count}</span></a>`).join("")}</div>
+      <a class="areaname" href="/a/${esc(a.id)}">${esc(a.name)}<span class="count">${a.count}</span></a>
+      <div class="cats">${a.categories.map((c) => `<a href="/c/${esc(c.id)}">${esc(c.name)}<span class="count">${c.count}</span></a>`).join("")}</div>
     </section>`).join("")}</div></div>`;
 }
 
@@ -313,8 +320,8 @@ const plVideos = (pl) => pl.vids.map((vid) => byVid.get(vid)).filter(Boolean);
 const plMinutes = (vs) => Math.round(vs.reduce((s, v) => s + (v.dur || 0), 0) / 60);
 const hours = (m) => m >= 60 ? `${Math.floor(m / 60)} hr ${m % 60} min` : `${m} min`;
 const plMeta = (vs) => `${vs.length} videos${HAS_META ? ` · ${hours(plMinutes(vs))}` : ""}`;
-const plCard = (pl) => { const vs = plVideos(pl); return `<a class="plcard" href="/p/${pl.slug}">
-  <div class="mosaic">${vs.slice(0, 4).map((v) => `<img loading="lazy" src="${thumbSrc(v.vid)}" data-vid="${v.vid}" onerror="thumbFallback(this)" alt="">`).join("")}
+const plCard = (pl) => { const vs = plVideos(pl); return `<a class="plcard" href="/p/${esc(pl.slug)}">
+  <div class="mosaic">${vs.slice(0, 4).map((v) => `<img loading="lazy" src="${thumbSrc(v.vid)}" data-vid="${v.vid}" alt="">`).join("")}
   <span class="plcount">${plMeta(vs)}</span></div><h3 class="vt">${esc(pl.title)}</h3><p class="sub">${esc(pl.pitch)}</p></a>`; };
 
 function playlistsPage() {
@@ -334,7 +341,7 @@ function playlistPage(slug) {
   document.title = `${pl.title} - RabbitHoleTV`;
   setContext(pl.title, vs);
   view.innerHTML = `<div class="plpage"><div class="plhead">
-    <div class="mosaic">${vs.slice(0, 4).map((v) => `<img src="${thumbSrc(v.vid)}" data-vid="${v.vid}" onerror="thumbFallback(this)" alt="">`).join("")}</div>
+    <div class="mosaic">${vs.slice(0, 4).map((v) => `<img src="${thumbSrc(v.vid)}" data-vid="${v.vid}" alt="">`).join("")}</div>
     <div><a class="crumb" href="/playlists">Playlists</a><h2>${esc(pl.title)}</h2><div class="sub">${plMeta(vs)}</div>
       <p class="intro">${esc(pl.pitch)}</p><div class="filterbar">${tvPill()}${playAll()}</div></div></div>
     <ol class="plrows">${vs.map((v, i) => `<li><span class="num">${i + 1}</span>${row(v)}</li>`).join("")}</ol></div>`;
@@ -459,10 +466,10 @@ async function watch(vid) {
   current.first = v;
   view.innerHTML = `<div class="watch"><div class="primary">
       <div class="player" id="player"><button class="poster" id="poster" aria-label="Play">
-        <img src="${useFrames ? frameSrc(vid) : thumbSrc(vid)}" data-vid="${vid}" onerror="thumbFallback(this)" alt="">
+        <img src="${useFrames ? frameSrc(vid) : thumbSrc(vid)}" data-vid="${vid}" alt="">
         <span class="play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span></button></div>
       <h1>${esc(v.title)}</h1>
-      <div class="owner"><div style="min-width:0"><b>${esc(v.channel)}</b><span class="sub" id="recline">${esc(hnLine(v))}</span></div>
+      <div class="owner"><div class="mw0"><b>${esc(v.channel)}</b><span class="sub" id="recline">${esc(hnLine(v))}</span></div>
         <div class="actions">
           <div class="seg">
             <button id="like" class="${likes.includes(vid) ? "on" : ""}" aria-label="Like"><svg viewBox="0 0 24 24"><path d="M18.77 11h-4.23l1.52-4.94C16.38 5.03 15.54 4 14.38 4c-.58 0-1.14.24-1.52.65L7 11H3v10h14.43c1.06 0 1.98-.67 2.19-1.61l1.34-6c.27-1.24-.78-2.39-2.19-2.39zM7 20H4v-8h3v8z"/></svg><span>Like</span></button>
@@ -487,12 +494,12 @@ async function watch(vid) {
     : `Cited ${hn.mentions}× on HN, ${hn.first_year}–${hn.last_year}`;
   $("#desc").innerHTML = `<div class="top-line">${[fmtViews(v.views), ago(v.pub), v.type, v.shelf].filter(Boolean).map(esc).join(" · ")}</div>
     <p>${esc(d.summary)}</p><p class="why">${esc(d.why_hn)}</p>
-    <div class="tags">${v.cats.map((c) => `<a class="tag cat" href="/c/${c}">${esc(CAT.get(c)?.name || c)}</a>`).join("")}
-      ${v.tags.map((t) => `<a class="tag" href="/search/${encodeURIComponent(t)}">#${esc(t.replace(/\s+/g, ""))}</a>`).join("")}</div>`;
+    <div class="tags">${v.cats.map((c) => `<a class="tag cat" href="/c/${esc(c)}">${esc(CAT.get(c)?.name || c)}</a>`).join("")}
+      ${v.tags.map((t) => `<a class="tag" href="/search/${esc(encodeURIComponent(t))}">#${esc(t.replace(/\s+/g, ""))}</a>`).join("")}</div>`;
   $("#comments").innerHTML = `<h2>${d.comments.length} comment${d.comments.length === 1 ? "" : "s"} from Hacker News</h2>
     ${d.comments.map((m) => `<div class="cmt"><div class="meta"><b>@${esc(m.author)}</b>${esc(m.ym.slice(0, 4))} · in “${esc(m.story)}”</div>
-      <p>${commentHTML(m.text)}</p><div class="foot"><span class="stance ${m.stance}">${STANCE[m.stance] || m.stance}</span>
-      <a href="https://news.ycombinator.com/item?id=${m.id}" target="_blank" rel="noopener">View on HN</a></div></div>`).join("")}`;
+      <p>${commentHTML(m.text)}</p><div class="foot"><span class="stance ${esc(m.stance)}">${esc(STANCE[m.stance] || m.stance)}</span>
+      <a href="https://news.ycombinator.com/item?id=${Number(m.id) || ""}" target="_blank" rel="noopener">View on HN</a></div></div>`).join("")}`;
   $("#upnext").innerHTML = next.map(nextRow).join("");
 }
 function playInline(vid) {
@@ -510,7 +517,7 @@ function about() {
   setContext("All videos", null);
   const f = (n) => Number(n).toLocaleString("en-US");
   view.innerHTML = `<article class="about">
-    <h1>RabbitHole<span style="color:var(--accent)">TV</span></h1>
+    <h1>RabbitHole<span class="accent">TV</span></h1>
     <p class="lede">The YouTube videos that Hacker News keeps telling each other to watch, plus a lean-back TV mode.</p>
     <div class="stats">
       <div class="stat"><b>${f(STATS.videos)}</b><span>videos</span></div>
@@ -600,7 +607,7 @@ function tvOpen({ auto = false } = {}) {
   el.classList.add("open");
   document.body.style.overflow = "hidden";
   $("#tvScope").textContent = `${tv.label} · ${tv.pool.length.toLocaleString()} video${tv.pool.length === 1 ? "" : "s"}`;
-  $("#tvBar").insertAdjacentHTML("beforeend", [1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => `<b style="left:${d * 10}%"></b>`).join(""));
+  for (let d = 1; d <= 9; d++) { const b = document.createElement("b"); b.style.left = `${d * 10}%`; $("#tvBar").append(b); }
   tvRenderInfo(); tvShowUI(6000);
   markSeen(first.vid);
   loadYT().then(() => {
@@ -767,7 +774,7 @@ addEventListener("popstate", () => { if (tv.open) tvClose(); route(); });
 document.addEventListener("click", (e) => {
   const tvb = e.target instanceof Element && e.target.closest("[data-tv]");
   if (tvb) { e.preventDefault(); tvOpen(); return; }
-  const a = e.target instanceof Element && e.target.closest("a[href^='/']");
+  const a = e.target instanceof Element && e.target.closest("a[href^='/']:not([href^='//'])");
   if (!a || a.target || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   e.preventDefault();
   navigate(a.getAttribute("href"));
