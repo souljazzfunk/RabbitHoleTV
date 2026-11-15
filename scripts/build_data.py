@@ -6,7 +6,7 @@ Downloads raw/ from hackertube.org if it is missing. If raw/youtube_meta.jsonl e
 (see scripts/fetch_youtube_meta.py) durations, views, likes and publish dates are merged in
 and deleted/private videos are dropped.
 """
-import io, json, os, shutil, urllib.request, zipfile
+import io, json, os, re, shutil, sys, urllib.request, zipfile
 from collections import defaultdict
 
 import numpy as np
@@ -128,6 +128,18 @@ def build_playlists(videos, areas, has_meta):
     return lists
 
 
+VID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
+SLUG_RE = re.compile(r"^[a-z0-9-]+$")
+
+
+def check_ids(videos, tax):
+    """The client interpolates these into URLs and attributes: refuse anything unexpected."""
+    bad = [v["vid"] for v in videos if not VID_RE.match(v["vid"])]
+    bad += [x["id"] for a in tax["areas"] for x in [a, *a["categories"]] if not SLUG_RE.match(x["id"])]
+    if bad:
+        sys.exit(f"unexpected ids in export: {bad[:10]}")
+
+
 def main():
     ensure_raw()
     videos = jsonl("videos.jsonl")
@@ -138,6 +150,7 @@ def main():
     idx = {vid: i for i, vid in enumerate(vids)}
 
     tax = json.load(open(os.path.join(RAW, "taxonomy.json"), encoding="utf-8"))
+    check_ids(videos, tax)
     cat_ids = [c["id"] for a in tax["areas"] for c in a["categories"]]
     cat_idx = {c: i for i, c in enumerate(cat_ids)}
     counts = defaultdict(int)

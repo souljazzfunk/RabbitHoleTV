@@ -36,6 +36,11 @@ precomputes static JSON in `public/data/`:
 `public/` is the whole site (plain HTML/CSS/JS). App routes like `/c/<id>` need an SPA fallback to `index.html`
 (on Cloudflare Workers this is `not_found_handling: "single-page-application"` in `wrangler.jsonc`).
 
+Security headers (strict CSP with no inline scripts/styles/handlers — only YouTube's IFrame API, embeds and
+`i.ytimg.com` thumbnails are allowed — plus nosniff, frame-ancestors/X-Frame-Options, HSTS, COOP) live in
+`public/_headers`. Data files keep the default revalidate-every-time caching on purpose: `index.json`, `search.json`,
+`similar.json` and the shards refer to each other by row position, so they must never mix across deploys. `npx wrangler dev` serves the site locally with them applied.
+
 Deploy: connect the repo in Cloudflare (Workers & Pages), leave the build command empty and use `npx wrangler deploy`.
 
 ```sh
