@@ -19,7 +19,7 @@ It plays from **whatever you're currently looking at**:
 
 Picks are random (gently weighted toward better-recommended videos) with no repeats until the pool is exhausted.
 Keys: `N` next · `P` previous · `Space` pause · `←/→` ±10s · `1–9` jump to 10–90% · `M` mute · `C` captions · `L` like ·
-`F` fullscreen · `Esc`/`T` exit. Append `?tv=1` to any URL to start TV mode on load (starts muted, since browsers block
+`F` fullscreen on/off (leaving fullscreen keeps TV playing in the window) · `Esc`/`T` exit. Append `?tv=1` to any URL to start TV mode on load (starts muted, since browsers block
 unmuted autoplay without a click).
 
 ## How it works
