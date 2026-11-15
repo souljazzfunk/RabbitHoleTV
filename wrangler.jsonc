@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "rabbitholetv",
+  "name": "rabbit-hole-tv",
   "compatibility_date": "2025-11-01",
   "assets": {
     "directory": "./public",
