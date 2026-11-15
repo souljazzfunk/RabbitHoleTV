@@ -512,12 +512,58 @@ async function watch(vid) {
       <a href="https://news.ycombinator.com/item?id=${Number(m.id) || ""}" target="_blank" rel="noopener">View on HN</a></div></div>`).join("")}`;
   $("#upnext").innerHTML = next.map(nextRow).join("");
 }
+// YouTube's own player shortcuts (support.google.com/youtube/answer/7631406); ui supplies toggle/seek/say for each player
+function playerKey(k, p, ui) {
+  const t = () => p.getCurrentTime() || 0, dur = () => p.getDuration() || 0;
+  if (k === " " || k === "k" || k === "K" || k === "MediaPlayPause") ui.toggle();
+  else if (k === "j" || k === "J") ui.seek(t() - 10, "−10s");
+  else if (k === "l") ui.seek(t() + 10, "+10s");
+  else if (k === "ArrowLeft") ui.seek(t() - 5, "−5s");
+  else if (k === "ArrowRight") ui.seek(t() + 5, "+5s");
+  else if (/^[0-9]$/.test(k)) ui.seek(dur() * k / 10, k === "0" ? "⏮ Start" : `${k * 10}%`);
+  else if (k === "Home") ui.seek(0, "⏮ Start");
+  else if (k === "End") ui.seek(dur(), "⏭ End");
+  else if (k === "ArrowUp" || k === "ArrowDown") {
+    const up = k === "ArrowUp", v = Math.max(0, Math.min(100, p.getVolume() + (up ? 5 : -5)));
+    p.setVolume(v); if (up) p.unMute(); else if (!v) p.mute();
+    ui.say(p.isMuted() && !up ? "Muted" : `Volume ${v}%`);
+  }
+  else if (k === "m" || k === "M") { const was = p.isMuted(); was ? p.unMute() : p.mute(); ui.say(was ? "Sound on" : "Muted"); }
+  else if (k === "c" || k === "C") ui.say(toggleCC(p) ? "Captions on" : "Captions off");
+  else if (k === "<" || k === ">") {
+    const rates = p.getAvailablePlaybackRates?.()?.length ? p.getAvailablePlaybackRates() : [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+    const i = rates.indexOf(p.getPlaybackRate()), r = rates[Math.max(0, Math.min(rates.length - 1, (i < 0 ? rates.indexOf(1) : i) + (k === ">" ? 1 : -1)))];
+    p.setPlaybackRate(r); ui.say(`${r}×`);
+  }
+  else if (k === "," || k === ".") { if (p.getPlayerState() !== YT.PlayerState.PLAYING) p.seekTo(Math.max(0, t() + (k === "." ? 1 : -1) / 30), true); }
+  else return false;
+  return true;
+}
+function watchKey(k) {
+  const p = watchPlayer?.ready && watchPlayer.getIframe()?.isConnected ? watchPlayer : null;
+  if (k === "N") { const n = $("#upnext .next"); if (n) navigate(n.getAttribute("href")); return true; }
+  if (k === "P") { history.back(); return true; }
+  if (k === "f" || k === "F") {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else p?.getIframe().requestFullscreen?.().catch(() => {});
+    return true;
+  }
+  if (!p) {
+    if (k === " " || k === "k" || k === "K") { $("#poster")?.click(); return true; }
+    return k === "j" || k === "J" || k === "l";
+  }
+  return playerKey(k, p, {
+    say: toast,
+    toggle: () => { const on = p.getPlayerState() === YT.PlayerState.PLAYING; on ? p.pauseVideo() : p.playVideo(); toast(on ? "❚❚ Paused" : "▶ Play"); },
+    seek: (s, label) => { const d = p.getDuration() || 0; p.seekTo(Math.max(0, Math.min(d || s, s)), true); toast(label); },
+  });
+}
 function playInline(vid) {
   $("#player").innerHTML = `<div id="ytwatch"></div>`;
   loadYT().then(() => {
     if (!$("#ytwatch")) return;
     watchPlayer = new YT.Player("ytwatch", { host: "https://www.youtube-nocookie.com", videoId: vid,
-      playerVars: { autoplay: 1, rel: 0, playsinline: 1, cc_load_policy: ccOn ? 1 : 0 }, events: { onReady: (e) => e.target.playVideo(),
+      playerVars: { autoplay: 1, rel: 0, playsinline: 1, cc_load_policy: ccOn ? 1 : 0 }, events: { onReady: (e) => { e.target.ready = true; e.target.playVideo(); },
         onStateChange: (e) => { if (e.data === YT.PlayerState.PLAYING && !e.target.ccSet) { e.target.ccSet = true; applyCC(e.target); } } } });
   });
 }
@@ -542,8 +588,9 @@ function about() {
       category, on an area page from that area, on a playlist from that playlist, on a search from the results, and filters
       (type, evergreen…) are respected. On a video page it continues that video, then keeps going in its category. On Home it
       picks from everything, better-recommended videos more often. Add <code>?tv=1</code> to any URL to start TV mode on load.</p>
-    <p><kbd>N</kbd> next · <kbd>P</kbd> previous · <kbd>Space</kbd> pause · <kbd>←</kbd>/<kbd>→</kbd> ±10s ·
-      <kbd>1</kbd>–<kbd>9</kbd> jump to 10–90% · <kbd>M</kbd> mute · <kbd>C</kbd> captions · <kbd>Y</kbd> copy link · <kbd>L</kbd> like · <kbd>F</kbd> fullscreen · <kbd>Esc</kbd> exit</p>
+    <p><kbd>N</kbd>/<kbd>P</kbd> next/previous · <kbd>K</kbd>/<kbd>Space</kbd> pause · <kbd>J</kbd>/<kbd>L</kbd> ±10s · <kbd>←</kbd>/<kbd>→</kbd> ±5s ·
+      <kbd>↑</kbd>/<kbd>↓</kbd> volume · <kbd>0</kbd>–<kbd>9</kbd> jump to 0–90% · <kbd>&lt;</kbd>/<kbd>&gt;</kbd> speed · <kbd>M</kbd> mute · <kbd>C</kbd> captions ·
+      <kbd>Y</kbd> copy link · <kbd>Shift</kbd>+<kbd>L</kbd> like · <kbd>F</kbd> fullscreen · <kbd>Esc</kbd> exit</p>
     <h2>Everything else</h2>
     <ul>
       <li><b>Home</b> is a fresh random mix on every visit, weighted toward the videos HN recommended most, with recent favorites,
@@ -722,23 +769,18 @@ function tvFullscreen() {
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   else el.requestFullscreen?.().then(() => { tv.wentFull = true; }).catch(() => {});
 }
+const TV_UI = { toggle: tvTogglePause, seek: tvSeek, say: (m) => { tvToast(m); tvShowUI(2500); } };
 function tvKey(e) {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key;
   let handled = true;
-  if (/^[0-9]$/.test(k)) { const d = +k, dur = tv.ready ? tv.player.getDuration() : 0; tvSeek(dur * d / 10, d === 0 ? "⏮ Start" : `${d * 10}%`); }
-  else if (k === "n" || k === "N" || k === "PageDown" || k === "MediaTrackNext") tvNext();
+  if (k === "n" || k === "N" || k === "PageDown" || k === "MediaTrackNext") tvNext();
   else if (k === "p" || k === "P" || k === "PageUp" || k === "MediaTrackPrevious") tvPrev();
-  else if (k === " " || k === "k" || k === "K" || k === "MediaPlayPause") tvTogglePause();
-  else if (k === "ArrowRight") tv.ready && tvSeek(tv.player.getCurrentTime() + 10, "+10s");
-  else if (k === "ArrowLeft") tv.ready && tvSeek(tv.player.getCurrentTime() - 10, "−10s");
-  else if (k === "m" || k === "M") { if (tv.ready) { tv.player.isMuted() ? tv.player.unMute() : tv.player.mute(); tvToast(tv.player.isMuted() ? "Muted" : "Sound on"); } }
-  else if (k === "c" || k === "C") { if (tv.ready) tvToast(toggleCC(tv.player) ? "CC on" : "CC off"); }
   else if (k === "y" || k === "Y") copyLink(tvCurrent().vid, (m) => tvToast(m, 1400));
-  else if (k === "l" || k === "L") { tvToast(toggleLike(tvCurrent().vid) ? "♥ Liked" : "Removed from Liked"); tvRenderInfo(); }
+  else if (k === "L") { tvToast(toggleLike(tvCurrent().vid) ? "♥ Liked" : "Removed from Liked"); tvRenderInfo(); }
   else if (k === "f" || k === "F") tvFullscreen();
   else if (k === "Escape" || k === "t" || k === "T") tvClose();
-  else { handled = false; tvShowUI(); }
+  else if (!(tv.ready && playerKey(k, tv.player, TV_UI))) { handled = false; tvShowUI(); }
   if (handled) e.preventDefault();
 }
 $("#tvBtn").onclick = () => tvOpen();
@@ -836,9 +878,12 @@ function select(i) {
   list.forEach((el, j) => el.classList.toggle("kbd", j === selected));
   list[selected].scrollIntoView({ block: "nearest" });
 }
-const SHORTCUTS = [["T", "TV mode: random videos from this page"], ["/", "Search"], ["j / k", "Next / previous video"],
-  ["Enter", "Open the selected video"], ["l", "Like the selected or current video"], ["w", "Watch later"],
-  ["p", "Play (on a video page)"], ["c", "Captions on / off (video page and TV mode)"], ["y", "Copy the YouTube link of the selected or current video"], ["h", "Home"], ["?", "Show these shortcuts"], ["Esc", "Close"]];
+const SHORTCUTS = [["T", "TV mode: random videos from this page"], ["/", "Search"], ["j / k", "Select next / previous video in a list"],
+  ["Enter", "Open the selected video"], ["l", "Like the selected video (Shift+L on a video page / TV)"], ["w", "Watch later"],
+  ["y", "Copy the YouTube link"], ["h", "Home"], ["?", "Show these shortcuts"], ["Esc", "Close"],
+  ["k / Space", "Play / pause (video page and TV mode, like YouTube)"], ["j / l", "Back / forward 10 s"], ["← / →", "Back / forward 5 s"],
+  ["↑ / ↓", "Volume"], ["0–9", "Jump to 0–90%"], ["< / >", "Slower / faster"], [", / .", "Previous / next frame (while paused)"],
+  ["m", "Mute"], ["c", "Captions on / off"], ["f", "Fullscreen"], ["N / P", "Next / previous video (Shift)"]];
 function toggleHelp(force) {
   const h = $("#help"), show = force ?? !h.classList.contains("on");
   h.innerHTML = `<div class="help-card" role="dialog" aria-label="Keyboard shortcuts"><h3>Keyboard shortcuts</h3>
@@ -857,18 +902,19 @@ document.addEventListener("keydown", (e) => {
   const watching = location.pathname.startsWith("/watch/") ? location.pathname.split("/")[2] : null;
   const target = vidOf(sel) || watching;
   const key = e.code === "Slash" && e.shiftKey ? "?" : e.key;
+  if (watching && watchKey(key)) { e.preventDefault(); return; }
   switch (key) {
     case "t": case "T": e.preventDefault(); tvOpen(); break;
     case "/": e.preventDefault(); $("#q").focus(); $("#q").select(); break;
     case "j": select(selected + 1); break;
     case "k": select(selected - 1); break;
     case "Enter": if (sel) { e.preventDefault(); navigate(sel.getAttribute("href")); } break;
-    case "l": if (target) { const on = toggleLike(target); toast(on ? "Added to Liked" : "Removed from Liked");
+    case "l": case "L": if (target) { const on = toggleLike(target); toast(on ? "Added to Liked" : "Removed from Liked");
       if (watching === target) { $("#like")?.classList.toggle("on", on); $("#dislike")?.classList.remove("on"); } } break;
     case "w": if (target) { const on = toggleLater(target); toast(on ? "Saved to Watch later" : "Removed from Watch later");
       document.querySelectorAll(`[data-later="${target}"]`).forEach((b) => { b.outerHTML = laterBtn(target); }); } break;
     case "p": $("#poster")?.click(); break;
-    case "c": case "C": if (watching) toast(toggleCC(watchPlayer?.loadModule ? watchPlayer : null) ? "Captions on" : "Captions off"); break;
+    case "c": case "C": if (watching) toast(toggleCC(null) ? "Captions on" : "Captions off"); break;
     case "y": case "Y": if (target) copyLink(target, toast); break;
     case "h": navigate("/"); break;
     case "?": toggleHelp(); break;

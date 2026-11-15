@@ -18,8 +18,9 @@ It plays from **whatever you're currently looking at**:
 | Home / anything else | all videos                                            |
 
 Picks are random (gently weighted toward better-recommended videos) with no repeats until the pool is exhausted.
-Keys: `N` next · `P` previous · `Space` pause · `←/→` ±10s · `1–9` jump to 10–90% · `M` mute · `C` captions · `Y` copy YouTube link · `L` like ·
-`F` fullscreen on/off (leaving fullscreen keeps TV playing in the window) · `Esc`/`T` exit. Append `?tv=1` to any URL to start TV mode on load (starts muted, since browsers block
+Keys follow YouTube's own player shortcuts (also on video pages): `K`/`Space` pause · `J`/`L` ±10s · `←/→` ±5s ·
+`↑/↓` volume · `0–9` jump to 0–90% · `<`/`>` speed · `,`/`.` frame step · `M` mute · `C` captions · `N`/`P` next/previous ·
+`Y` copy YouTube link · `Shift+L` like · `F` fullscreen on/off (leaving fullscreen keeps TV playing in the window) · `Esc`/`T` exit. Append `?tv=1` to any URL to start TV mode on load (starts muted, since browsers block
 unmuted autoplay without a click).
 
 ## How it works
