@@ -34,7 +34,9 @@ precomputes static JSON in `public/data/`:
 - `v/<shard>.json` — summaries + HN comments, 256 shards loaded on demand
 
 `public/` is the whole site (plain HTML/CSS/JS). App routes like `/c/<id>` need an SPA fallback to `index.html`
-(`public/_redirects` handles Netlify; Cloudflare Pages does it by default).
+(on Cloudflare Workers this is `not_found_handling: "single-page-application"` in `wrangler.jsonc`).
+
+Deploy: connect the repo in Cloudflare (Workers & Pages), leave the build command empty and use `npx wrangler deploy`.
 
 ```sh
 python3 scripts/build_data.py     # needs numpy; re-downloads the export if raw/ is missing
