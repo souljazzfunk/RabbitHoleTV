@@ -428,6 +428,12 @@ async function search(q) {
 
 // ---------- watch ----------
 let ytReady = null, watchPlayer = null;
+// Captions go through the IFrame API's "captions" module (not in the official docs, but long-stable).
+let ccOn = store.get("cc", false) === true;
+function applyCC(p) {
+  try { if (ccOn) { p.loadModule("captions"); p.setOption("captions", "reload", true); } else p.unloadModule("captions"); } catch {}
+}
+function toggleCC(p) { ccOn = !ccOn; store.set("cc", ccOn); if (p) applyCC(p); return ccOn; }
 function loadYT() {
   ytReady ??= new Promise((res) => {
     window.onYouTubeIframeAPIReady = res;
@@ -507,7 +513,8 @@ function playInline(vid) {
   loadYT().then(() => {
     if (!$("#ytwatch")) return;
     watchPlayer = new YT.Player("ytwatch", { host: "https://www.youtube-nocookie.com", videoId: vid,
-      playerVars: { autoplay: 1, rel: 0, playsinline: 1 }, events: { onReady: (e) => e.target.playVideo() } });
+      playerVars: { autoplay: 1, rel: 0, playsinline: 1, cc_load_policy: ccOn ? 1 : 0 }, events: { onReady: (e) => e.target.playVideo(),
+        onStateChange: (e) => { if (e.data === YT.PlayerState.PLAYING && !e.target.ccSet) { e.target.ccSet = true; applyCC(e.target); } } } });
   });
 }
 
@@ -532,7 +539,7 @@ function about() {
       (type, evergreen…) are respected. On a video page it continues that video, then keeps going in its category. On Home it
       picks from everything, better-recommended videos more often. Add <code>?tv=1</code> to any URL to start TV mode on load.</p>
     <p><kbd>N</kbd> next · <kbd>P</kbd> previous · <kbd>Space</kbd> pause · <kbd>←</kbd>/<kbd>→</kbd> ±10s ·
-      <kbd>1</kbd>–<kbd>9</kbd> jump to 10–90% · <kbd>M</kbd> mute · <kbd>L</kbd> like · <kbd>F</kbd> fullscreen · <kbd>Esc</kbd> exit</p>
+      <kbd>1</kbd>–<kbd>9</kbd> jump to 10–90% · <kbd>M</kbd> mute · <kbd>C</kbd> captions · <kbd>L</kbd> like · <kbd>F</kbd> fullscreen · <kbd>Esc</kbd> exit</p>
     <h2>Everything else</h2>
     <ul>
       <li><b>Home</b> is a fresh random mix on every visit, weighted toward the videos HN recommended most, with recent favorites,
@@ -573,7 +580,7 @@ function notFound() { view.innerHTML = `<div class="status">Not found.</div>`; }
 // One persistent fullscreen player. The pool is whatever the current page shows; picks are random, weighted
 // gently toward better-recommended videos, without repeats until the pool runs out.
 const tv = { open: false, player: null, ready: false, hist: [], pos: -1, pool: [], played: new Set(), label: "",
-             uiTimer: 0, toastTimer: 0, tick: 0, wentFull: false, auto: false };
+             uiTimer: 0, toastTimer: 0, tick: 0, wentFull: false, auto: false, ccVid: null };
 
 function tvPool() {
   let list = current.list || V;
@@ -600,7 +607,7 @@ function tvOpen({ auto = false } = {}) {
     first = current.first;
     try { startAt = Math.floor(watchPlayer?.getCurrentTime?.() || 0); watchPlayer?.pauseVideo?.(); } catch {}
   }
-  Object.assign(tv, { open: true, ready: false, pool: tvPool(), label: current.label, played: new Set(), hist: [], pos: -1, wentFull: false, auto });
+  Object.assign(tv, { open: true, ready: false, pool: tvPool(), label: current.label, played: new Set(), hist: [], pos: -1, wentFull: false, auto, ccVid: null });
   first ??= tvPick();
   tv.hist = [first]; tv.pos = 0; tv.played.add(first.vid);
   document.activeElement?.blur?.();
@@ -614,7 +621,7 @@ function tvOpen({ auto = false } = {}) {
     if (!tv.open) return;
     tv.player = new YT.Player("tvplayer", {
       host: "https://www.youtube-nocookie.com", videoId: first.vid,
-      playerVars: { autoplay: 1, controls: 0, disablekb: 1, rel: 0, playsinline: 1, iv_load_policy: 3, fs: 0, start: startAt },
+      playerVars: { autoplay: 1, controls: 0, disablekb: 1, rel: 0, playsinline: 1, iv_load_policy: 3, fs: 0, start: startAt, cc_load_policy: ccOn ? 1 : 0 },
       events: {
         onReady: (e) => {
           tv.ready = true; e.target.playVideo();
@@ -625,7 +632,11 @@ function tvOpen({ auto = false } = {}) {
             }
           }, 1500);
         },
-        onStateChange: (e) => { if (e.data === YT.PlayerState.ENDED) tvNext(); },
+        onStateChange: (e) => {
+          if (e.data === YT.PlayerState.ENDED) tvNext();
+          // re-apply on every new video: cc_load_policy only covers the first one, and YouTube's own sticky caption setting can override ours
+          else if (e.data === YT.PlayerState.PLAYING && tv.ccVid !== tvCurrent()?.vid) { tv.ccVid = tvCurrent()?.vid; applyCC(e.target); }
+        },
         onError: () => { tvToast("Can't play this one, skipping…", 1400); setTimeout(() => tv.open && tvNext(), 1500); },
       },
     });
@@ -718,6 +729,7 @@ function tvKey(e) {
   else if (k === "ArrowRight") tv.ready && tvSeek(tv.player.getCurrentTime() + 10, "+10s");
   else if (k === "ArrowLeft") tv.ready && tvSeek(tv.player.getCurrentTime() - 10, "−10s");
   else if (k === "m" || k === "M") { if (tv.ready) { tv.player.isMuted() ? tv.player.unMute() : tv.player.mute(); tvToast(tv.player.isMuted() ? "Muted" : "Sound on"); } }
+  else if (k === "c" || k === "C") { if (tv.ready) tvToast(toggleCC(tv.player) ? "CC on" : "CC off"); }
   else if (k === "l" || k === "L") { tvToast(toggleLike(tvCurrent().vid) ? "♥ Liked" : "Removed from Liked"); tvRenderInfo(); }
   else if (k === "f" || k === "F") tvFullscreen();
   else if (k === "Escape" || k === "t" || k === "T") tvClose();
@@ -819,7 +831,7 @@ function select(i) {
 }
 const SHORTCUTS = [["T", "TV mode: random videos from this page"], ["/", "Search"], ["j / k", "Next / previous video"],
   ["Enter", "Open the selected video"], ["l", "Like the selected or current video"], ["w", "Watch later"],
-  ["p", "Play (on a video page)"], ["h", "Home"], ["?", "Show these shortcuts"], ["Esc", "Close"]];
+  ["p", "Play (on a video page)"], ["c", "Captions on / off (video page and TV mode)"], ["h", "Home"], ["?", "Show these shortcuts"], ["Esc", "Close"]];
 function toggleHelp(force) {
   const h = $("#help"), show = force ?? !h.classList.contains("on");
   h.innerHTML = `<div class="help-card" role="dialog" aria-label="Keyboard shortcuts"><h3>Keyboard shortcuts</h3>
@@ -849,6 +861,7 @@ document.addEventListener("keydown", (e) => {
     case "w": if (target) { const on = toggleLater(target); toast(on ? "Saved to Watch later" : "Removed from Watch later");
       document.querySelectorAll(`[data-later="${target}"]`).forEach((b) => { b.outerHTML = laterBtn(target); }); } break;
     case "p": $("#poster")?.click(); break;
+    case "c": case "C": if (watching) toast(toggleCC(watchPlayer?.loadModule ? watchPlayer : null) ? "Captions on" : "Captions off"); break;
     case "h": navigate("/"); break;
     case "?": toggleHelp(); break;
     default: return;
