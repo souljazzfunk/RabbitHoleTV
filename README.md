@@ -1,4 +1,4 @@
-# HackerTube TV
+# RabbitHoleTV
 
 A static remake of [HackerTube](https://hackertube.org) by [@karpathy](https://x.com/karpathy) — the YouTube videos
 Hacker News keeps recommending — with a lean-back **TV mode** modeled on [TristanTube](https://karpathy.ai/tristan-tube/).

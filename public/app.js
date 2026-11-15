@@ -261,7 +261,7 @@ async function home() {
 async function category(id) {
   const c = CAT.get(id);
   if (!c) return notFound();
-  document.title = `${c.name} - HackerTube TV`;
+  document.title = `${c.name} - RabbitHoleTV`;
   const p = filterParams();
   const list = applyFilters(V.filter((v) => v.cats.includes(id)), p);
   setContext(c.name, list);
@@ -274,7 +274,7 @@ async function category(id) {
 async function area(id) {
   const a = AREAS.find((x) => x.id === id);
   if (!a) return notFound();
-  document.title = `${a.name} - HackerTube TV`;
+  document.title = `${a.name} - RabbitHoleTV`;
   const p = filterParams();
   const list = applyFilters(V.filter((v) => v.cats.some((c) => CAT.get(c)?.area === id)), p);
   setContext(a.name, list);
@@ -287,7 +287,7 @@ async function area(id) {
 
 async function browsePage() {
   const p = filterParams(), longs = p.dur === "xlong";
-  document.title = `${longs ? "Longs" : "All videos"} - HackerTube TV`;
+  document.title = `${longs ? "Longs" : "All videos"} - RabbitHoleTV`;
   const list = applyFilters(V, p);
   setContext(longs ? "Longs" : "All videos", list);
   view.innerHTML = `<div class="pagehead"><h2>${longs ? "Longs" : "All videos"}</h2>${longs ? `<p class="sub">Every video over an hour. The opposite of Shorts.</p>` : ""}</div>
@@ -297,7 +297,7 @@ async function browsePage() {
 }
 
 async function categoriesPage() {
-  document.title = "Categories - HackerTube TV";
+  document.title = "Categories - RabbitHoleTV";
   setContext("All videos", null);
   view.innerHTML = `<div class="explore"><div class="pagehead"><h2>Categories</h2></div>
     <div class="quick"><a class="pill" href="/browse?sort=recent">Recently recommended</a>
@@ -318,7 +318,7 @@ const plCard = (pl) => { const vs = plVideos(pl); return `<a class="plcard" href
   <span class="plcount">${plMeta(vs)}</span></div><h3 class="vt">${esc(pl.title)}</h3><p class="sub">${esc(pl.pitch)}</p></a>`; };
 
 function playlistsPage() {
-  document.title = "Playlists - HackerTube TV";
+  document.title = "Playlists - RabbitHoleTV";
   setContext("All videos", null);
   view.innerHTML = `<div class="explore"><div class="pagehead"><h2>Playlists</h2>
     <p class="sub">Built from what Hacker News recommends, best first.</p></div>
@@ -331,7 +331,7 @@ function playlistPage(slug) {
   const pl = PLAYLISTS.find((p) => p.slug === slug);
   if (!pl) return notFound();
   const vs = plVideos(pl);
-  document.title = `${pl.title} - HackerTube TV`;
+  document.title = `${pl.title} - RabbitHoleTV`;
   setContext(pl.title, vs);
   view.innerHTML = `<div class="plpage"><div class="plhead">
     <div class="mosaic">${vs.slice(0, 4).map((v) => `<img src="${thumbSrc(v.vid)}" data-vid="${v.vid}" onerror="thumbFallback(this)" alt="">`).join("")}</div>
@@ -406,7 +406,7 @@ async function runSearch(q, p) {
 }
 async function search(q) {
   $("#q").value = q;
-  document.title = `${q} - HackerTube TV`;
+  document.title = `${q} - RabbitHoleTV`;
   const p = filterParams();
   view.innerHTML = `<div class="status">Searching…</div>`;
   const res = await runSearch(q, p);
@@ -452,7 +452,7 @@ async function upNext(v, n = 20) {
 async function watch(vid) {
   const v = byVid.get(vid);
   if (!v) return notFound();
-  document.title = `${v.title} - HackerTube TV`;
+  document.title = `${v.title} - RabbitHoleTV`;
   markSeen(vid);
   const primary = CAT.get(v.cats[0]);
   setContext(primary ? primary.name : "All videos", primary ? V.filter((x) => x.cats.includes(primary.id)) : null);
@@ -506,11 +506,11 @@ function playInline(vid) {
 
 // ---------- about / settings ----------
 function about() {
-  document.title = "About - HackerTube TV";
+  document.title = "About - RabbitHoleTV";
   setContext("All videos", null);
   const f = (n) => Number(n).toLocaleString("en-US");
   view.innerHTML = `<article class="about">
-    <h1>Hacker<span style="color:var(--accent)">Tube</span> TV</h1>
+    <h1>RabbitHole<span style="color:var(--accent)">TV</span></h1>
     <p class="lede">The YouTube videos that Hacker News keeps telling each other to watch, plus a lean-back TV mode.</p>
     <div class="stats">
       <div class="stat"><b>${f(STATS.videos)}</b><span>videos</span></div>
@@ -547,7 +547,7 @@ function about() {
   </article>`;
 }
 function settings() {
-  document.title = "Settings - HackerTube TV";
+  document.title = "Settings - RabbitHoleTV";
   setContext("All videos", null);
   view.innerHTML = `<div class="settings"><div class="pagehead"><h2>Settings</h2></div>
     <label class="setting"><div><b>Show video frames instead of thumbnails</b>
@@ -735,7 +735,7 @@ async function route() {
   const path = location.pathname;
   const [, page, ...rest] = path.split("/");
   const arg = decodeURIComponent(rest.join("/"));
-  document.title = "HackerTube TV";
+  document.title = "RabbitHoleTV";
   document.body.classList.remove("drawer");
   selected = -1;
   const here = path + location.search.replace(/[?&]tv=1/, "");
