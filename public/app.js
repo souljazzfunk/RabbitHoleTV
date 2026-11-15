@@ -729,8 +729,10 @@ $("#tvExit").onclick = tvClose;
 $("#tvFull").onclick = tvFullscreen;
 $("#tv .tvcatch").onclick = tvTogglePause;
 $("#tv").addEventListener("mousemove", () => tv.open && tvShowUI(2500));
-// leaving browser fullscreen (the browser eats Esc there) also leaves TV mode
-document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && tv.open && tv.wentFull) tvClose(); });
+// leaving browser fullscreen (the browser eats Esc there) keeps TV playing in the window; a second Esc exits
+document.addEventListener("fullscreenchange", () => {
+  if (!document.fullscreenElement && tv.open && tv.wentFull) { tv.wentFull = false; tvToast("Fullscreen off · F fullscreen · Esc exit TV", 2500); tvShowUI(2500); }
+});
 
 // ---------- router ----------
 function navigate(path) {
