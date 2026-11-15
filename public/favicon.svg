@@ -1,8 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect width="64" height="64" rx="14" fill="#ff6600"/>
-  <g stroke="#fff" stroke-width="4.5" stroke-linecap="round" fill="none">
-    <path d="M32 24 22 7M32 24 42 7"/>
+  <g fill="#fff">
+    <ellipse cx="22" cy="14" rx="6.5" ry="12.5" transform="rotate(-18 22 14)"/>
+    <ellipse cx="42" cy="14" rx="6.5" ry="12.5" transform="rotate(18 42 14)"/>
   </g>
-  <rect x="9" y="23" width="46" height="34" rx="8" fill="#fff"/>
-  <ellipse cx="32" cy="40" rx="11" ry="9" fill="#1a1a1a"/>
+  <g fill="#ffb3c1">
+    <ellipse cx="22" cy="14" rx="3" ry="8" transform="rotate(-18 22 14)"/>
+    <ellipse cx="42" cy="14" rx="3" ry="8" transform="rotate(18 42 14)"/>
+  </g>
+  <rect x="7" y="23" width="50" height="36" rx="10" fill="#fff"/>
+  <rect x="13" y="29" width="38" height="24" rx="7" fill="#1a1a1a"/>
+  <circle cx="24.5" cy="39" r="3" fill="#fff"/>
+  <circle cx="39.5" cy="39" r="3" fill="#fff"/>
+  <path d="M28.5 44.5q3.5 3.5 7 0" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+  <circle cx="19.5" cy="45" r="2.3" fill="#ff8fa3"/>
+  <circle cx="44.5" cy="45" r="2.3" fill="#ff8fa3"/>
 </svg>
